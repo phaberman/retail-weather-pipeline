@@ -78,6 +78,6 @@ def run(start_date: str, end_date: str) -> None:
 
 if __name__ == "__main__":
     # Backfill: 3 months of historical data
-    start = (date.today() - timedelta(days=90)).isoformat()
+    start = (date.today() - timedelta(days=730)).isoformat()
     end = (date.today() - timedelta(days=1)).isoformat()
     run(start, end)
