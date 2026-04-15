@@ -4,10 +4,12 @@ import requests
 from datetime import date, timedelta
 from dotenv import load_dotenv
 from google.cloud import storage
+from google.oauth2 import service_account
+
 
 load_dotenv()
 
-CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+CREDENTIALS_PATH = os.getenv("RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
 
@@ -48,7 +50,8 @@ def fetch_weather(city: str, lat: float, lon: float, start: str, end: str) -> di
 
 
 def upload_to_gcs(data: dict, city: str, start: str, end: str) -> None:
-    client = storage.Client(project=GCP_PROJECT_ID)
+    credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
+    client = storage.Client(project=GCP_PROJECT_ID, credentials=credentials)
     bucket = client.bucket(GCS_BUCKET_NAME)
     blob_path = f"weather/{city}/raw_{start}_{end}.json"
     blob = bucket.blob(blob_path)
@@ -74,7 +77,7 @@ def run(start_date: str, end_date: str) -> None:
 
 
 if __name__ == "__main__":
-    # Backfill: 2 years of historical data
-    start = (date.today() - timedelta(days=730)).isoformat()
+    # Backfill: 3 months of historical data
+    start = (date.today() - timedelta(days=90)).isoformat()
     end = (date.today() - timedelta(days=1)).isoformat()
     run(start, end)
