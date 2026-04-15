@@ -2,12 +2,17 @@ import os
 import json
 from dotenv import load_dotenv
 from google.cloud import storage, bigquery
+from google.oauth2 import service_account
+
 
 load_dotenv()
 
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
 BQ_DATASET_RAW = os.getenv("BQ_DATASET_RAW")
+CREDENTIALS_PATH = os.getenv("RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS")
+
+credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
 
 CITIES = [
     "new_york",
@@ -72,13 +77,12 @@ def load_city(city: str, bq_client: bigquery.Client, gcs_client: storage.Client)
 
 
 def run() -> None:
-    bq_client = bigquery.Client(project=GCP_PROJECT_ID)
-    gcs_client = storage.Client(project=GCP_PROJECT_ID)
+    bq_client = bigquery.Client(project=GCP_PROJECT_ID, credentials=credentials)
+    gcs_client = storage.Client(project=GCP_PROJECT_ID, credentials=credentials)
     for city in CITIES:
         print(f"Loading {city}...")
         load_city(city, bq_client, gcs_client)
     print("Loading complete.")
-
 
 if __name__ == "__main__":
     run()
