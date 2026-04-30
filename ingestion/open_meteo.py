@@ -13,6 +13,8 @@ CREDENTIALS_PATH = os.getenv("RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS")
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
 
+credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
+
 CITIES = {
     "new_york":    {"latitude": 40.7128,  "longitude": -74.0060},
     "chicago":     {"latitude": 41.8781,  "longitude": -87.6298},
@@ -50,7 +52,6 @@ def fetch_weather(city: str, lat: float, lon: float, start: str, end: str) -> di
 
 
 def upload_to_gcs(data: dict, city: str, start: str, end: str) -> None:
-    credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
     client = storage.Client(project=GCP_PROJECT_ID, credentials=credentials)
     bucket = client.bucket(GCS_BUCKET_NAME)
     blob_path = f"weather/{city}/raw_{start}_{end}.json"
