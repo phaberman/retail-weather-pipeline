@@ -32,7 +32,6 @@ clean-targets:         # directories to be removed by `dbt clean`
 models:
   retail_weather:
     staging:
-      +schema: staging
       +materialized: view
     marts:
       +schema: marts
