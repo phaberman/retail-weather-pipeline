@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: stg_weather
+    description: "Cleaned and renamed daily weather data for 5 US retail markets. One row per city per date."
+    columns:
+      - name: city
+        description: "City identifier (snake_case)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['new_york', 'chicago', 'los_angeles', 'houston', 'seattle']
+
+      - name: date
+        description: "Calendar date of observation"
+        tests:
+          - not_null
+
+      - name: temp_max_f
+        description: "Daily high temperature in Fahrenheit"
+        tests:
+          - not_null
+
+      - name: temp_min_f
+        description: "Daily low temperature in Fahrenheit"
+        tests:
+          - not_null
+
+      - name: precipitation_in
+        description: "Total precipitation in inches"
+
+      - name: windspeed_max_mph
+        description: "Maximum windspeed in mph"
+
+      - name: wmo_code
+        description: "WMO weather interpretation code"
+
+      - name: is_rainy_day
+        description: "True if precipitation > 0.1 inches"
+
+      - name: is_freezing_day
+        description: "True if daily high < 32F"
+
+      - name: is_hot_day
+        description: "True if daily high > 90F"
+
+      - name: is_windy_day
+        description: "True if max windspeed > 25 mph"
