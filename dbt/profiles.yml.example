@@ -1,0 +1,14 @@
+retail_weather:
+  outputs:
+    dev:
+      dataset: raw                          # fallback only — +schema in dbt_project.yml controls actual dataset routing
+      job_execution_timeout_seconds: 300
+      job_retries: 1
+      keyfile: /absolute/path/to/your-service-account-key.json
+      location: us-central1
+      method: service-account
+      priority: interactive
+      project: your-gcp-project-id
+      threads: 4
+      type: bigquery
+  target: dev

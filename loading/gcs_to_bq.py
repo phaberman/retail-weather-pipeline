@@ -1,3 +1,10 @@
+# Reads raw JSON from GCS, flattens Open-Meteo's columnar format into row-per-date,
+# and loads all cities into a single BigQuery table: raw.weather.
+# WRITE_TRUNCATE ensures reruns are safe — full reload on every execution.
+# Single unified table chosen over per-city tables to simplify dbt modeling:
+# city is a dimension column, not a table namespace.
+
+
 import os
 import json
 from dotenv import load_dotenv
