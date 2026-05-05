@@ -10,6 +10,16 @@ with source as (
     from {{ source('raw', 'weather') }}
 ),
 
+deduped as (
+    select
+        *,
+        row_number() over (
+            partition by city, date
+            order by date desc
+        ) as row_num
+    from source
+),
+
 renamed as (
     select
         city,
@@ -30,12 +40,13 @@ renamed as (
         weathercode as wmo_code,
 
         -- Retail weather flags
-        case when precipitation_sum > 0.1  then true else false end as is_rainy_day,
-        case when temperature_2m_max < 32  then true else false end as is_freezing_day,
-        case when temperature_2m_max > 90  then true else false end as is_hot_day,
-        case when windspeed_10m_max > 25   then true else false end as is_windy_day
+        case when precipitation_sum > 0.1 then true else false end as is_rainy_day,
+        case when temperature_2m_max < 32 then true else false end as is_freezing_day,
+        case when temperature_2m_max > 90 then true else false end as is_hot_day,
+        case when windspeed_10m_max > 25  then true else false end as is_windy_day
 
-    from source
+    from deduped
+    where row_num = 1
 )
 
 select * from renamed

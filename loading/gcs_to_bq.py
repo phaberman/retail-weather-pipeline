@@ -1,9 +1,8 @@
 # Reads raw JSON from GCS, flattens Open-Meteo's columnar format into row-per-date,
-# and loads all cities into a single BigQuery table: raw.weather.
-# WRITE_TRUNCATE ensures reruns are safe — full reload on every execution.
+# and appends new rows into BigQuery table: raw.weather.
+# WRITE_APPEND + dbt dedup (see stg_weather.sql) = incremental pipeline pattern.
 # Single unified table chosen over per-city tables to simplify dbt modeling:
 # city is a dimension column, not a table namespace.
-
 
 import os
 import json
@@ -78,15 +77,15 @@ def load_all_cities(bq_client: bigquery.Client, gcs_client: storage.Client) -> N
         print("No rows to load. Exiting.")
         return
 
-    # Write all cities to a single table — WRITE_TRUNCATE makes this idempotent
+    # Append new rows — dedup handled downstream in dbt stg_weather
     table_id = f"{GCP_PROJECT_ID}.{BQ_DATASET_RAW}.weather"
     job_config = bigquery.LoadJobConfig(
         schema=SCHEMA,
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
     )
     job = bq_client.load_table_from_json(all_rows, table_id, job_config=job_config)
     job.result()
-    print(f"\nLoaded {len(all_rows)} total rows → {table_id}")
+    print(f"\nAppended {len(all_rows)} rows → {table_id}")
 
 
 def run() -> None:

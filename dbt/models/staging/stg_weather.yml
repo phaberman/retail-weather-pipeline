@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: stg_weather
-    description: "Cleaned and renamed daily weather data for 5 US retail markets. One row per city per date."
+    description: "Cleaned and renamed daily weather data for 5 US retail markets. One row per city per date. Deduped on (city, date) — raw layer may contain duplicates from incremental appends."
     columns:
       - name: city
         description: "City identifier (snake_case)"
@@ -46,3 +46,9 @@ models:
 
       - name: is_windy_day
         description: "True if max windspeed > 25 mph"
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - city
+            - date
