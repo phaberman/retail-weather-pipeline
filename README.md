@@ -2,7 +2,7 @@
 
 End-to-end ELT pipeline simulating a retail analytics use case: a multi-city retailer needs to understand how weather conditions drive demand variability across markets, so planners can position inventory ahead of weather events.
 
-**[View Live Dashboard →](YOUR_LOOKER_STUDIO_LINK_HERE)**
+**[View Live Dashboard →](https://datastudio.google.com/reporting/dfe232e5-a51a-4d86-bcd0-42ad2e845942)**
 
 ---
 
