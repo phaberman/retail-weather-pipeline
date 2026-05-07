@@ -125,6 +125,7 @@ cp .env.example .env
 Edit `.env`:
 
 ```
+# Must be absolute path — relative paths will fail at runtime
 RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/your-key.json
 GCP_PROJECT_ID=your-gcp-project-id
 GCS_BUCKET_NAME=your-gcs-bucket-name
