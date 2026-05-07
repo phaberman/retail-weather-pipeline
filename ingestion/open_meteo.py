@@ -2,8 +2,6 @@
 # Stores one JSON file per city in GCS under weather/{city}/raw_{start}_{end}.json.
 # Uses explicit service account credentials via RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS
 # rather than GOOGLE_APPLICATION_CREDENTIALS to avoid conflicts with other GCP projects
-# on the same machine (e.g. sleep-analytics-pipeline).
-
 
 import os
 import json
@@ -85,7 +83,7 @@ def run(start_date: str, end_date: str) -> None:
 
 
 if __name__ == "__main__":
-    # Backfill: 3 months of historical data
+    # Backfill: 2 years of historical data
     start = (date.today() - timedelta(days=730)).isoformat()
     end = (date.today() - timedelta(days=1)).isoformat()
     run(start, end)

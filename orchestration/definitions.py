@@ -6,10 +6,7 @@
 # yesterday's data is fully available from Open-Meteo's archive API.
 
 
-import os
-from pathlib import Path
 from dagster import Definitions, ScheduleDefinition, define_asset_job
-from dagster_dbt import DbtCliResource
 from dotenv import load_dotenv
 
 from orchestration.assets.ingest import raw_weather_gcs

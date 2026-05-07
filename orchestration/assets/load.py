@@ -1,5 +1,5 @@
-# Loading asset: reads raw JSON from GCS and loads all cities into a single
-# BigQuery table (raw.weather) using WRITE_TRUNCATE for idempotency.
+# Loading asset: reads raw JSON from GCS and appends new rows into a single
+# BigQuery table (raw.weather). WRITE_APPEND + dbt dedup = incremental pattern.
 # One unified table (vs. per-city tables) simplifies the dbt staging layer —
 # city is a column, not a table namespace.
 
