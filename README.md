@@ -1,53 +1,60 @@
 # retail-weather-pipeline
 
-A production-style ELT pipeline simulating a retail analytics use case: a multi-city retailer needs to understand how weather conditions drive demand variability across markets, so planners can position inventory ahead of weather events.
+End-to-end ELT pipeline simulating a retail analytics use case: a multi-city retailer needs to understand how weather conditions drive demand variability across markets, so planners can position inventory ahead of weather events.
+
+**[View Live Dashboard →](YOUR_LOOKER_STUDIO_LINK_HERE)**
 
 ---
 
 ## Architecture
 
 ```
-Open-Meteo API → GCS (raw JSON) → BigQuery (raw) → dbt (staging + marts) → Looker Studio
-                                                              ↑
-                                                          Dagster (orchestration)
+Open-Meteo API → GCS (raw JSON) → BigQuery (raw.weather) → dbt (staging + marts) → Looker Studio
 ```
 
-**Stack:** Python 3.12 · Open-Meteo API · Google Cloud Storage · BigQuery · dbt Core · Dagster · Looker Studio
+Orchestrated end-to-end with Dagster. Runs daily at 06:00 UTC.
 
 ---
 
-## Markets Covered
+## Stack
 
-| City | Climate Profile |
+| Layer | Tool |
 |---|---|
-| New York | High seasonality, cold winters |
-| Chicago | Volatile weather, extreme temperature swings |
-| Los Angeles | Mild baseline — contrast market |
-| Houston | Heat and humidity driven demand |
-| Seattle | High precipitation, strong rain gear market |
+| Ingestion | Python + Open-Meteo Archive API |
+| Storage | Google Cloud Storage |
+| Warehouse | BigQuery |
+| Transformation | dbt Core |
+| Orchestration | Dagster |
+| Visualization | Looker Studio |
 
 ---
 
-## Pipeline Stages
+## Pipeline Overview
 
-### 1. Ingestion (`ingestion/open_meteo.py`)
-Pulls daily weather data from the [Open-Meteo Archive API](https://open-meteo.com/) for all 5 cities. On first run, performs a 2-year historical backfill. On subsequent runs, pulls yesterday's data. Lands one JSON file per city in GCS.
+### Ingestion — `ingestion/open_meteo.py`
+Pulls daily weather data for 5 US retail markets from the Open-Meteo free archive API (no auth required). Lands one JSON file per city in GCS at `weather/{city}/raw_{start}_{end}.json`.
 
-### 2. Loading (`loading/gcs_to_bq.py`)
-Reads each city's latest JSON from GCS, flattens Open-Meteo's columnar format into one row per city per date, and loads all cities into a single `raw.weather` table in BigQuery using `WRITE_TRUNCATE` for idempotency.
+Markets: New York · Chicago · Los Angeles · Houston · Seattle
 
-### 3. Transformation (`dbt/`)
-dbt Core models in two layers:
+Variables: `temperature_2m_max`, `temperature_2m_min`, `precipitation_sum`, `windspeed_10m_max`, `weathercode`
 
-| Layer | Model | Description |
+### Loading — `loading/gcs_to_bq.py`
+Reads the latest GCS blob per city, flattens Open-Meteo's columnar JSON into one row per date, and appends all cities into a single BigQuery table (`raw.weather`). Uses `WRITE_APPEND` for incremental loads.
+
+### Transformation — `dbt/`
+Three-layer dbt project:
+
+| Model | Type | Description |
 |---|---|---|
-| Staging | `stg_weather` | Cleaned, renamed, retail flag columns added |
-| Marts | `mart_daily_weather` | Daily fact table — foundation for all analysis |
-| Marts | `mart_city_monthly` | Monthly aggregates: temp, precip, weather impact days |
-| Marts | `mart_weather_alerts` | High-impact days scored by alert condition count |
+| `stg_weather` | View | Cleans and renames raw fields. Deduplicates on `(city, date)` via `ROW_NUMBER()` to handle incremental appends. Adds retail weather flags. |
+| `mart_daily_weather` | Table | Daily fact table — one row per city per date. Foundation for downstream analysis. |
+| `mart_city_monthly` | Table | Monthly aggregates per city: avg temp, total precipitation, rainy/freezing/hot/windy day counts, total weather impact days. |
+| `mart_weather_alerts` | Table | Days flagged as high retail weather impact. Scored 0–4 by concurrent alert conditions. |
 
-### 4. Orchestration (`orchestration/`)
-Dagster wires all pipeline steps into a single DAG with explicit asset dependencies:
+**Key dbt decision:** custom `generate_schema_name` macro overrides dbt's default schema-appending behavior, routing models to `staging` and `marts` datasets directly.
+
+### Orchestration — `orchestration/`
+Dagster software-defined assets wire the full pipeline into a single connected DAG:
 
 ```
 raw_weather_gcs → weather_bigquery → stg_weather → mart_daily_weather
@@ -55,26 +62,39 @@ raw_weather_gcs → weather_bigquery → stg_weather → mart_daily_weather
                                                  → mart_weather_alerts
 ```
 
-Scheduled daily at 06:00 UTC via `ScheduleDefinition`.
+**Key Dagster decision:** manual `@asset` + `AssetIn` definitions used instead of `@dbt_assets` decorator — the decorator does not support explicit upstream Python asset dependencies, which would break end-to-end lineage visibility.
 
 ---
 
-## Key Engineering Decisions
+## Project Structure
 
-**Single `raw.weather` table over per-city tables**
-All 5 cities load into one table with a `city` column. Simpler dbt models, cleaner lineage, mirrors real-world practice.
-
-**Explicit credential isolation**
-Uses `RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS` (not the default `GOOGLE_APPLICATION_CREDENTIALS`) to avoid conflicts with other GCP projects. Credentials loaded explicitly via `google.oauth2.service_account.Credentials.from_service_account_file()` in all scripts.
-
-**Manual `@asset` definitions over `@dbt_assets` decorator**
-`@dbt_assets` does not support explicit `deps` wiring to upstream Python assets in current Dagster versions, which splits the lineage graph. Manual `@asset` + `AssetIn` definitions produce a single connected DAG end-to-end.
-
-**`generate_schema_name` macro in dbt**
-dbt's `+schema` config appends to the profile dataset by default rather than replacing it. A custom macro overrides this behavior so models land in `staging` and `marts` directly as named — not `raw_staging` or `raw_marts`.
-
-**`WRITE_TRUNCATE` for idempotency**
-BigQuery loads use `WRITE_TRUNCATE` so any rerun produces the same result without duplicating rows.
+```
+retail-weather-pipeline/
+├── ingestion/
+│   └── open_meteo.py         # API → GCS
+├── loading/
+│   └── gcs_to_bq.py          # GCS → BigQuery
+├── dbt/
+│   ├── dbt_project.yml
+│   ├── macros/
+│   │   └── generate_schema_name.sql
+│   └── models/
+│       ├── staging/
+│       │   ├── sources.yml
+│       │   ├── stg_weather.sql
+│       │   └── stg_weather.yml
+│       └── marts/
+│           ├── mart_daily_weather.sql
+│           ├── mart_city_monthly.sql
+│           ├── mart_weather_alerts.sql
+│           └── marts.yml
+└── orchestration/
+    ├── definitions.py
+    └── assets/
+        ├── ingest.py
+        ├── load.py
+        └── dbt_assets.py
+```
 
 ---
 
@@ -86,7 +106,7 @@ BigQuery loads use `WRITE_TRUNCATE` so any rerun produces the same result withou
 - GCP project with BigQuery and Cloud Storage APIs enabled
 - Service account with BigQuery Admin + Storage Admin roles
 
-### Environment
+### 1. Clone and create environment
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/retail-weather-pipeline.git
@@ -96,42 +116,46 @@ pyenv local retail-weather-pipeline-env
 pip install -r requirements.txt
 ```
 
-Copy and populate the env file:
+### 2. Configure environment variables
 
 ```bash
 cp .env.example .env
 ```
 
+Edit `.env`:
+
 ```
-RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json
+RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/your-key.json
 GCP_PROJECT_ID=your-gcp-project-id
-GCS_BUCKET_NAME=your-gcs-bucket
+GCS_BUCKET_NAME=your-gcs-bucket-name
 BQ_DATASET_RAW=raw
 BQ_DATASET_STAGING=staging
 BQ_DATASET_MARTS=marts
 ```
 
-Copy and populate the dbt profiles file:
+### 3. Configure dbt
 
 ```bash
 cp dbt/profiles.yml.example dbt/profiles.yml
 ```
 
-### Run manually
+Edit `dbt/profiles.yml` with your GCP project ID and service account key path.
 
 ```bash
-# Ingest (backfill on first run)
+dbt deps --project-dir dbt
+dbt debug --project-dir dbt
+```
+
+### 4. Run historical backfill
+
+```bash
 python ingestion/open_meteo.py
-
-# Load GCS → BigQuery
 python loading/gcs_to_bq.py
-
-# Transform with dbt
 dbt run --project-dir dbt
 dbt test --project-dir dbt
 ```
 
-### Run via Dagster
+### 5. Launch Dagster
 
 ```bash
 dagster dev -f orchestration/definitions.py
@@ -141,28 +165,12 @@ Open `http://localhost:3000` → Assets → Materialize all.
 
 ---
 
-## Project Structure
+## Key Design Decisions
 
-```
-retail-weather-pipeline/
-├── ingestion/
-│   └── open_meteo.py          # Open-Meteo API → GCS
-├── loading/
-│   └── gcs_to_bq.py           # GCS → BigQuery raw
-├── dbt/
-│   ├── models/
-│   │   ├── staging/            # stg_weather view
-│   │   └── marts/              # 3 analytical tables
-│   ├── macros/                 # generate_schema_name override
-│   ├── dbt_project.yml
-│   └── profiles.yml.example
-├── orchestration/
-│   ├── assets/
-│   │   ├── ingest.py           # Dagster asset: ingestion
-│   │   ├── load.py             # Dagster asset: loading
-│   │   └── dbt_assets.py      # Dagster assets: dbt models
-│   └── definitions.py          # Jobs, schedules, resources
-├── .env.example
-├── requirements.txt
-└── README.md
-```
+**Explicit credentials over default ADC** — uses `RETAIL_WEATHER_GOOGLE_APPLICATION_CREDENTIALS` instead of `GOOGLE_APPLICATION_CREDENTIALS` to avoid conflicts with other GCP projects on the same machine.
+
+**Single unified table over per-city tables** — `raw.weather` uses `city` as a dimension column, not a table namespace. Simplifies dbt modeling and mirrors real-world practice.
+
+**WRITE_APPEND + dbt dedup** — incremental append pattern with `ROW_NUMBER()` dedup in staging mirrors production pipeline design. Raw layer accumulates history; staging always emits one clean row per `(city, date)`.
+
+**generate_schema_name macro** — dbt's default `+schema` behavior appends to the profile dataset name rather than replacing it. Custom macro overrides this so models land in `staging` and `marts` directly.
