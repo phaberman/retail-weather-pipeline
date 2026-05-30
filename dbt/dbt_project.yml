@@ -14,11 +14,20 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+# models:
+#   retail_weather:
+#     staging:
+#       +materialized: view
+#       +schema: staging
+#     marts:
+#       +materialized: table
+#       +schema: marts
+
 models:
   retail_weather:
     staging:
       +materialized: view
-      +schema: staging
     marts:
       +materialized: table
-      +schema: marts
+      star_schema:
+        +materialized: table
