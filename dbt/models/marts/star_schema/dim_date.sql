@@ -1,9 +1,6 @@
 with date_spine as (
 
-  select date
-  from unnest(
-      generate_date_array('2023-01-01', current_date())
-  ) as date
+    {{ generate_date_spine() }}
 
 )
 
