@@ -28,4 +28,4 @@ jobs:
       - name: Run dbt build
         env:
           BIGQUERY_KEYFILE_PATH: /tmp/keyfile.json
-        run: dbt build --project-dir dbt
+        run: dbt build --project-dir dbt --profiles-dir dbt
