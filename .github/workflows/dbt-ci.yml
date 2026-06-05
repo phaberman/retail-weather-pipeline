@@ -25,6 +25,9 @@ jobs:
         run: |
           echo '${{ secrets.BIGQUERY_CREDENTIALS }}' > /tmp/keyfile.json
 
+      - name: Create profiles.yml
+        run: cp dbt/profiles.yml.example dbt/profiles.yml
+
       - name: Run dbt build
         env:
           BIGQUERY_KEYFILE_PATH: /tmp/keyfile.json
