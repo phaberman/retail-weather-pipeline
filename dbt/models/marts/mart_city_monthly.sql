@@ -18,6 +18,7 @@ dim_city as (
 
 select
 
+  -- City and date attributes
   c.city_name,
   c.region,
   c.climate_zone,

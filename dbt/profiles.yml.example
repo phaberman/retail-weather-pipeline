@@ -8,7 +8,7 @@ retail_weather:
       location: us-central1
       method: service-account
       priority: interactive
-      project: your-gcp-project-id
+      project: retail-weather-pipeline
       threads: 4
       type: bigquery
   target: dev

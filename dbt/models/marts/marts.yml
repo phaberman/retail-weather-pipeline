@@ -4,20 +4,20 @@ models:
   - name: mart_daily_weather
     description: "Daily weather fact table for all 5 retail markets. Foundation for all downstream analysis."
     columns:
-      - name: city
+      - name: city_name
         tests:
           - not_null
-      - name: date
+      - name: full_date
         tests:
           - not_null
 
   - name: mart_city_monthly
     description: "Monthly weather aggregates per city. Tracks temperature, precipitation, and retail-impact day counts."
     columns:
-      - name: city
+      - name: city_name
         tests:
           - not_null
-      - name: month
+      - name: month_name
         tests:
           - not_null
 
